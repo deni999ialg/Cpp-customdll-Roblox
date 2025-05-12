@@ -1,0 +1,66 @@
+// ArdentExec.cpp
+#include <Windows.h>
+#include <iostream>
+#include "lua.hpp"
+
+class ArdentExec {
+private:
+    static inline lua_State* L = nullptr;
+
+public:
+    static void inj() {
+        if (!L) {
+            MessageBoxA(NULL, "Injecting ArdentExec...", "DLL Loaded", MB_OK);
+            L = luaL_newstate();
+            if (L) {
+                luaL_openlibs(L);
+                MessageBoxA(NULL, "Lua Initialized!", "DLL Loaded", MB_OK);
+            } else {
+                MessageBoxA(NULL, "Failed to initialize Lua!", "DLL Error", MB_OK);
+            }
+        }
+    }
+
+    static void exec(const char* luaCode) {
+        if (L) {
+            if (luaL_dostring(L, luaCode) != LUA_OK) {
+                std::cerr << "Lua error: " << lua_tostring(L, -1) << std::endl;
+                lua_pop(L, 1);
+            }
+        } else {
+            std::cerr << "Lua not initialized. Call ArdentExec::inj() first." << std::endl;
+        }
+    }
+
+    static void shutdown() {
+        if (L) {
+            lua_close(L);
+            L = nullptr;
+            MessageBoxA(NULL, "Lua Closed", "DLL Unloaded", MB_OK);
+        }
+    }
+};
+
+extern "C" __declspec(dllexport) void Inject() {
+    ArdentExec::inj();
+}
+
+extern "C" __declspec(dllexport) void Exec(const char* code) {
+    ArdentExec::exec(code);
+}
+
+extern "C" __declspec(dllexport) void Shutdown() {
+    ArdentExec::shutdown();
+}
+
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
+    switch (ul_reason_for_call) {
+        case DLL_PROCESS_ATTACH:
+            ArdentExec::inj();
+            break;
+        case DLL_PROCESS_DETACH:
+            ArdentExec::shutdown();
+            break;
+    }
+    return TRUE;
+}
